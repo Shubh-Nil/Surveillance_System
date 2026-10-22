@@ -27,4 +27,39 @@ class Flow(unittest.TestCase):
   with self.assertRaises(ValueError):o.valid({'type':'TASK_RESULT'})
   with self.assertRaises(ValueError):o.run(self.s,3,True)
  def test_runtime_ignored(self):self.assertEqual(o.git('check-ignore','.agents/runtime/state.json'),'.agents/runtime/state.json')
-if __name__=='__main__':unittest.main()
+ def test_usage_limit_pause(self):
+  from unittest.mock import patch
+  with patch.object(o,'invoke',side_effect=o.Limit()): self.assertEqual(o.run(self.s,1,True)['status'],'PAUSED_USAGE_LIMIT')
+ def test_network_pause(self):
+  from unittest.mock import patch
+  with patch.object(o,'invoke',side_effect=OSError('network disconnected')): self.assertEqual(o.run(self.s,1,True)['status'],'PAUSED_UNCERTAIN')
+ def test_max_attempts(self):
+  self.queue(self.assignment(),self.result(),self.review('REVISE'),self.result(2),self.review('REVISE',2));self.assertEqual(o.run(self.s,1,True)['status'],'MAX_ATTEMPTS')
+ def test_schema_rejects_wrong_types(self):
+  m=self.assignment();m['source']='IMPOSTOR'
+  with self.assertRaises(ValueError):o.valid(m)
+ def test_restart_does_not_retry(self):
+  self.s['status']='INVOKING';o.save(o.R/'state.json',self.s)
+  with self.assertRaises(RuntimeError):o.run(o.read(o.R/'state.json',{}),1,True)
+ def test_main_branch_rejected(self):
+  from unittest.mock import patch
+  with patch.object(o,'git',return_value='main'):
+   with self.assertRaises(RuntimeError):o.run(self.s,1,True)
+
+
+
+ def test_separate_role_calls_and_timeout(self):
+  from unittest.mock import patch
+  import subprocess
+  prompt=o.R/'role.txt';prompt.write_text('Role instructions')
+  config=dict(o.CFG,live_execution_enabled=True,pm_prompt_path=str(prompt),tl_prompt_path=str(prompt))
+  calls=[]
+  def fake(cmd,**kwargs):
+   calls.append(cmd);role='PM' if cmd[cmd.index('--sandbox')+1]=='read-only' else 'TL1'
+   o.save(pathlib.Path(cmd[cmd.index('-o')+1]),self.assignment() if role=='PM' else self.result())
+   return subprocess.CompletedProcess(cmd,0,'','')
+  with patch.dict(o.CFG,config),patch.object(o.subprocess,'run',side_effect=fake):
+   o.invoke('PM',{},False);o.invoke('TL1',{},False)
+  self.assertEqual(len(calls),2);self.assertIn('--output-schema',calls[0])
+  with patch.dict(o.CFG,config),patch.object(o.subprocess,'run',side_effect=subprocess.TimeoutExpired('codex',1)):
+   with self.assertRaisesRegex(RuntimeError,'timeout'):o.invoke('TL1',{},False)
