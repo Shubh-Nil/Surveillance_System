@@ -1,0 +1,1 @@
+Work on the current authorized TL branch. Never write to main, merge, push data, expose secrets, or run costly research without a bounded approved task. Treat Datasets/MOT20 as read-only. Keep runtime state out of Git. PM acceptance never authorizes a main merge. Stop on uncertain outcomes, supervisor questions, usage limits, or missing evidence.
