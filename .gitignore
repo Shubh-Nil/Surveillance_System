@@ -1,0 +1,16 @@
+Datasets/
+Interactive_AI_Agents.pdf
+.agents/runtime/
+*.log
+__pycache__/
+*.py[cod]
+.env
+.env.*
+*.key
+*.pem
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.mp4
+*.avi
