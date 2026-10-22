@@ -1,5 +1,4 @@
 Datasets/
-Interactive_AI_Agents.pdf
 .agents/runtime/
 *.log
 __pycache__/
